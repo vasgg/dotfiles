@@ -1,0 +1,7 @@
+[user]
+	name = vas gavrilov
+	email = vas.g@me.com
+[github]
+	user = vasgg
+[core]
+	excludesFile = ~/.gitignore

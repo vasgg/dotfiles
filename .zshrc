@@ -11,11 +11,15 @@ fi
 # Path to your oh-my-zsh installation.
 export PATH="/Users/vasg/Library/Python/3.11/bin:$PATH"
 export ZSH="$HOME/.oh-my-zsh"
+export FZF_BASE=/opt/homebrew/bin/fzf
+
+eval "$(fzf --zsh)"
+
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THE:ME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="powerlevel10k/powerlevel10k"
+# ZSH_THEME="powerlevel10k/powerlevel10k"
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
 # a theme from this variable instead of looking in $ZSH/themes/
@@ -47,7 +51,7 @@ zstyle ':omz:update' frequency 13
 # DISABLE_AUTO_TITLE="true"
 
 # Uncomment the following line to enable command auto-correction.
-ENABLE_CORRECTION="true"
+ENABLE_CORRECTION="false"
 
 # Uncomment the following line to display red dots whilst waiting for completion.
 # You can also set it to another string to have that shown instead of the default red dots.
@@ -67,6 +71,23 @@ ENABLE_CORRECTION="true"
 # or set a custom format using the strftime function format specifications,
 # see 'man strftime' for details.
 HIST_STAMPS="dd.mm.yyyy"
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=10000000
+SAVEHIST=10000000
+
+HISTORY_IGNORE="(ls|cd|pwd|exit|cd)*"
+
+setopt EXTENDED_HISTORY      # Делать записи в файле истории в формате ':start:elapsed;command'.
+setopt INC_APPEND_HISTORY    # Писать данные в файл истории немедленно, а не тогда, когда осуществляется выход из оболочки.
+setopt SHARE_HISTORY         # Использовать во всех сессиях общее хранилище истории.
+setopt HIST_IGNORE_DUPS      # Не делать повторную запись о только что записанном событии.
+setopt HIST_IGNORE_ALL_DUPS  # Удалять старую запись о событии в том случае, если новое событие является дубликатом старого.
+setopt HIST_IGNORE_SPACE     # Не делать записи о командах, начинающихся с пробела.
+setopt HIST_SAVE_NO_DUPS     # Не записывать дубликаты событий в файл истории.
+setopt HIST_VERIFY           # Перед выполнением команд показывать записи о них из истории команд.
+setopt APPEND_HISTORY        # Добавлять записи к файлу истории (по умолчанию).
+setopt HIST_NO_STORE         # Не хранить записи о командах history.
+setopt HIST_REDUCE_BLANKS    # Убирать лишние пробелы из командных строк, добавляемых в историю.
 
 # Would you like to use another custom folder than $ZSH/custom?
 # ZSH_CUSTOM=/path/to/new-custom-folder
@@ -76,7 +97,7 @@ HIST_STAMPS="dd.mm.yyyy"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git zsh-syntax-highlighting aliases pip poetry qrcode ripgrep screen sublime-merge tmux)
+plugins=(git zsh-syntax-highlighting aliases pip qrcode ripgrep screen sublime-merge fzf)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -101,7 +122,6 @@ alias restart='sudo shutdown -r now'
 alias quit='killall'
 alias emptytrash='sudo rm -rf ~/.Trash/*'
 
-alias python='python3.11'
 alias vi='nvim'
 alias vim='nvim'
 
@@ -119,18 +139,14 @@ alias gd='git diff'
 alias gcl='git clone'
 alias gpull='git pull'
 
-alias pi='pip install'
-alias pu='pip uninstall'
-alias pug='pip uninstall --yes'
+#alias puall='pip freeze | xargs pip uninstall -y'
+#alias pugc='pip uninstall --yes $(pip list --not-required)'
 
-alias puall='pip freeze | xargs pip uninstall -y'
-alias pugc='pip uninstall --yes $(pip list --not-required)'
-
-alias psl='pip show'
-alias pss='pip search'
-alias pse='pip search | grep'
-alias pssite='pip show -f'
-alias venv='python3 -m venv venv; source venv/bin/activate'
+#alias psl='pip show'
+#alias pss='pip search'
+#alias pse='pip search | grep'
+#alias pssite='pip show -f'
+#alias venv='python3 -m venv venv; source venv/bin/activate'
 alias jn='jupyter notebook'
 
 alias l='ls -CF'
@@ -143,6 +159,7 @@ alias mv='mv -i'
 alias h='history'
 alias c='clear'
 alias e='pycharm ~/.zshrc'
+alias blink='blink1-tool'
 
 
 #######################
@@ -152,11 +169,11 @@ alias e='pycharm ~/.zshrc'
 # export LANG=en_US.UTF-8
 
 # Preferred editor for local and remote sessions
-# if [[ -n $SSH_CONNECTION ]]; then
-#   export EDITOR='vim'
-# else
-#   export EDITOR='mvim'
-# fi
+if [[ -n $SSH_CONNECTION ]]; then
+  export EDITOR='vim'
+else
+  export EDITOR='vim'
+fi
 
 # Compilation flags
 # export ARCHFLAGS="-arch x86_64"
@@ -174,3 +191,5 @@ alias e='pycharm ~/.zshrc'
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
+
+. "$HOME/.cargo/env"

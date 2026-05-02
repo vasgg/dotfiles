@@ -5,6 +5,12 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+# Hardcoded brew prefix — saves ~150-300ms by avoiding repeated `brew --prefix` forks.
+export BREW_PREFIX=/opt/homebrew
+
+# Skip Oh My Zsh's compaudit — we trust our own dirs.
+ZSH_DISABLE_COMPFIX=true
+
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
@@ -71,8 +77,8 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
 # Completions from brew
-FPATH="$(brew --prefix)/share/zsh-completions:$FPATH"
-FPATH="$(brew --prefix)/share/zsh/site-functions:$FPATH"
+FPATH="$BREW_PREFIX/share/zsh-completions:$FPATH"
+FPATH="$BREW_PREFIX/share/zsh/site-functions:$FPATH"
 
 # Which plugins would you like to load?
 # Standard plugins can be found in $ZSH/plugins/
@@ -80,7 +86,56 @@ FPATH="$(brew --prefix)/share/zsh/site-functions:$FPATH"
 plugins=(git)
 
 
+# Defer compdef calls so OMZ plugins (which call compdef during source) don't
+# fail. They'll be replayed once real compinit runs and defines compdef.
+typeset -ga _zsh_deferred_compdefs
+compdef() { _zsh_deferred_compdefs+=("${(j: :)@}") }
+
+# Stub OMZ's compinit call so its slow ~500ms invocation is skipped.
+# Readonly attribute survives `autoload -U` re-marking inside OMZ.
+function compinit { return 0 }
+typeset -fr compinit >/dev/null
+
 source $ZSH/oh-my-zsh.sh
+
+# Restore real compinit and run it ourselves with daily caching.
+# After OMZ source, fpath has all OMZ functions/plugins, so the dump is complete.
+# `compinit -C` reuses cached dump (~5ms); once a day we do a full rebuild.
+typeset +r -f compinit >/dev/null 2>&1
+unfunction compinit 2>/dev/null
+autoload -Uz compinit
+# Full rebuild if dump is missing, smaller than 10KB (OMZ writes a metadata-only
+# stub when our stubbed compinit doesn't run), or older than 24h.
+# Use zsh/stat (builtin module — no fork) to read size and mtime.
+zmodload -F zsh/stat b:zstat
+zmodload zsh/datetime
+() {
+  local -A s
+  local need_full=0
+  zstat -H s -- "$ZSH_COMPDUMP" 2>/dev/null || need_full=1
+  (( ${s[size]:-0} < 10000 )) && need_full=1
+  (( EPOCHSECONDS - ${s[mtime]:-0} > 86400 )) && need_full=1
+  if (( need_full )); then
+    compinit -d "$ZSH_COMPDUMP"
+    # Re-append OMZ metadata so OMZ won't rm the dump on next shell start.
+    # Without this, every shell triggers a full rebuild (OMZ's metadata check
+    # fails after compinit overwrites the file).
+    {
+      print
+      print -r -- "#omz revision: $(builtin cd -q "$ZSH"; git rev-parse HEAD 2>/dev/null)"
+      print -r -- "#omz fpath: $fpath"
+    } >> "$ZSH_COMPDUMP"
+  else
+    compinit -C -d "$ZSH_COMPDUMP"
+  fi
+}
+
+# Replay compdef calls that were deferred during OMZ source.
+# (Real compdef is now defined by compinit, replacing our stub.)
+for _q in "${_zsh_deferred_compdefs[@]}"; do
+  compdef ${(z)_q}
+done
+unset _zsh_deferred_compdefs _q
 
 # User configuration
 alias _='sudo'
@@ -162,7 +217,7 @@ export EDITOR="subl -n -w"
 
 [[ -f ~/projects/work/openrc/lux-4 ]] && source ~/projects/work/openrc/lux-4
 
-. "$HOME/.local/bin/env"
+[[ -r "$HOME/.local/bin/env" ]] && source "$HOME/.local/bin/env"
 
 [[ -f ~/.secrets ]] && source ~/.secrets
 
@@ -172,7 +227,7 @@ fpath=(/Users/vasilii.gavrilov/.docker/completions $fpath)
 # --- Plugins loaded after Oh My Zsh ---
 
 # zsh-autosuggestions: показывает предложения из истории серым текстом
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source $BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # fzf: fuzzy-поиск по истории (Ctrl+R), файлам (Ctrl+T), каталогам (Alt+C)
 source <(fzf --zsh)
@@ -182,4 +237,12 @@ export FZF_DEFAULT_OPTS="--height=40% --layout=reverse --border --info=inline"
 eval "$(zoxide init zsh)"
 
 # fast-syntax-highlighting: подсветка синтаксиса (замена zsh-syntax-highlighting)
-source $(brew --prefix)/share/zsh-fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
+source $BREW_PREFIX/share/zsh-fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
+
+# bun completions
+[ -s "/Users/vasilii.gavrilov/.bun/_bun" ] && source "/Users/vasilii.gavrilov/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
